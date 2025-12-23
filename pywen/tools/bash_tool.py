@@ -117,7 +117,7 @@ def track_pid(pid: int):
 def untrack_pid(pid: int):
     """从跟踪列表移除 PID"""
     _tracked_pids.discard(pid)
-@register_tool(name="bash", providers=["pywen", "claude",])
+@register_tool(name="bash", providers=["pywen", "pywenswe", "claude"])
 class BashTool(BaseTool):
     """Shell 命令执行工具"""
 
@@ -305,7 +305,7 @@ class BashTool(BaseTool):
                 env=env,
                 start_new_session=(os.name != "nt"),
             )
-            return await self._read_with_progress(process, timeout)
+            return await self._read_with_progress(process, timeout, cwd)
 
         except Exception as e:
             return ToolCallResult(call_id="", error=f"Error executing command: {str(e)}")
@@ -313,7 +313,8 @@ class BashTool(BaseTool):
     async def _read_with_progress(
         self,
         process: asyncio.subprocess.Process,
-        timeout: float
+        timeout: float,
+        cwd: str
     ) -> ToolCallResult:
         """增量读取命令输出"""
         stdout_chunks: list[str] = []
@@ -342,7 +343,13 @@ class BashTool(BaseTool):
                 stdout, stderr = await process.communicate()
                 stdout_text = stdout.decode(self._encoding, errors='replace') if stdout else ""
                 stderr_text = stderr.decode(self._encoding, errors='replace') if stderr else ""
-                return self._format_result(process.returncode or 0, stdout_text, stderr_text)
+                return self._format_result(
+                    process.returncode or 0,
+                    stdout_text,
+                    stderr_text,
+                    cwd=cwd,
+                    pid=process.pid,
+                )
         except asyncio.TimeoutError:
             pass
 
@@ -380,7 +387,13 @@ class BashTool(BaseTool):
                 )
                 stdout_text = stdout.decode(self._encoding, errors='replace') if stdout else ""
                 stderr_text = stderr.decode(self._encoding, errors='replace') if stderr else ""
-                return self._format_result(process.returncode or 0, stdout_text, stderr_text)
+                return self._format_result(
+                    process.returncode or 0,
+                    stdout_text,
+                    stderr_text,
+                    cwd=cwd,
+                    pid=process.pid,
+                )
             except asyncio.TimeoutError:
                 pass
 
@@ -465,7 +478,15 @@ class BashTool(BaseTool):
         except Exception as e:
             return ToolCallResult(call_id="", error=f"Error starting background process: {str(e)}")
 
-    def _format_result(self, exit_code: int, stdout: str, stderr: str) -> ToolCallResult:
+    def _format_result(
+        self,
+        exit_code: int,
+        stdout: str,
+        stderr: str,
+        *,
+        cwd: Optional[str] = None,
+        pid: Optional[int] = None
+    ) -> ToolCallResult:
         """格式化命令执行结果"""
         stdout = self._truncate_output(stdout.strip())
         stderr = self._truncate_output(stderr.strip())
@@ -475,17 +496,29 @@ class BashTool(BaseTool):
             result_parts.append(stdout)
         if stderr:
             result_parts.append(f"[stderr]: {stderr}")
-        if exit_code != 0:
-            result_parts.append(f"[Exit Code: {exit_code}]")
         if not result_parts:
             result_parts.append("Command executed successfully (no output)")
 
         result_text = '\n'.join(result_parts)
+        meta_lines = [f"[Exit Code: {exit_code}]"]
+        if cwd:
+            meta_lines.append(f"[CWD: {cwd}]")
+        if pid:
+            meta_lines.append(f"[PID: {pid}]")
+        result_text = result_text + "\n" + "\n".join(meta_lines)
 
         if exit_code != 0:
-            return ToolCallResult(call_id="", result=result_text, metadata={"exit_code": exit_code})
+            return ToolCallResult(
+                call_id="",
+                result=result_text,
+                metadata={"exit_code": exit_code, "cwd": cwd, "pid": pid},
+            )
 
-        return ToolCallResult(call_id="", result=result_text)
+        return ToolCallResult(
+            call_id="",
+            result=result_text,
+            metadata={"exit_code": exit_code, "cwd": cwd, "pid": pid},
+        )
 
     async def kill_background(self, pid: int) -> ToolCallResult:
         """终止后台进程"""

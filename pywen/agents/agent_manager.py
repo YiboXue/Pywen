@@ -12,6 +12,7 @@ from .base_agent import BaseAgent
 from .pywen.pywen_agent import PywenAgent
 from .claude.claude_agent import ClaudeAgent
 from .codex.codex_agent import CodexAgent
+from .pywenswe.pywenswe_agent import PywenSWEAgent
 
 class ExecutionState:
     """进程内的执行状态（支持取消）"""
@@ -136,6 +137,8 @@ class AgentManager:
     async def _create_agent(self, normalized_name: str) -> BaseAgent:
         if normalized_name == "pywen":
             return PywenAgent(self._config_mgr, self._cli, self._tool_mgr)
+        if normalized_name == "pywenswe":
+            return PywenSWEAgent(self._config_mgr, self._cli, self._tool_mgr)
         if normalized_name == "claude":
             return ClaudeAgent(self._config_mgr, self._cli, self._tool_mgr)
         if normalized_name == "codex":

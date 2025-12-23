@@ -45,6 +45,16 @@ agents:
     provider: openai                           # 因为使用 OpenAI 风格接口，所以 provider=openai
     wire_api: chat                             # 使用 /chat/completions 的调用方式
 
+  # ------------------------------
+  # Pywen SWE（文本函数调用解析）
+  # ------------------------------
+  - agent_name: pywenswe
+    model: "placeholder"                       # 模型名称
+    api_key: "your-qwen-api-key-here"          # 模型api_key
+    base_url: ""                               # 模型base_url
+    provider: openai                           # 使用 OpenAI 风格接口
+    wire_api: chat                             # 使用 /chat/completions 的调用方式
+
 
   # ------------------------------
   # Claude Code（Anthropic）
@@ -147,4 +157,3 @@ custom_settings:
 # runtime：用于 Agent 临时状态,用户不应该手动修改
 # ------------------------------------------------------------
 runtime: {}
-

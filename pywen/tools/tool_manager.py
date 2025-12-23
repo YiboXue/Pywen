@@ -178,4 +178,7 @@ class ToolManager:
                 res.error = reason
                 res.result = None
 
-        return res.success, res.result
+        if res.success:
+            return True, res.result
+        # Prefer explicit error message for failed tool calls.
+        return False, res.error or res.result or "Unknown error"
