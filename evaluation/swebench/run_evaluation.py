@@ -389,6 +389,12 @@ conda activate testbed && \
 """
             output = ops.exec_sh(container, run_cmd, check=False)
             (instance_res_dir / "run.log").write_text(output, encoding="utf-8")
+
+            trajectories_dir = instance_res_dir / "trajectories"
+            try:
+                ops.cp_from_container(container, "/root/.pywen/trajectories", trajectories_dir)
+            except RuntimeError:
+                pass
     
             patch_out = ops.exec_sh(container, "cd /testbed && git diff", check=False)
             if patch_out.strip():
@@ -485,7 +491,7 @@ def main():
     parser.add_argument("--dataset", default="SWE-bench_Lite", choices=["SWE-bench", "SWE-bench_Lite", "SWE-bench_Verified"], help="Dataset to use")
     parser.add_argument("--max-workers", type=int, default=1, help="Number of parallel workers")
     parser.add_argument("--config", type=str, default=str(Path.home() / ".pywen" / "pywen_config.yaml"), help="Pywen config file path")
-    parser.add_argument("--agent", default="pywen", choices=["pywen", "codex", "claude"], help="Agent to use")
+    parser.add_argument("--agent", default="pywen", choices=["pywen", "codex", "claude","pywenswe"], help="Agent to use")
     parser.add_argument("--limit", type=int, default=None, help="Only run first N instances after filtering")
     parser.add_argument("--pattern", type=str, default=None, help="Regex to filter instance_id")
     parser.add_argument("--mode", type=str, default="expr", choices=["expr", "collect", "e2e"],

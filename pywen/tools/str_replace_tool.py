@@ -130,8 +130,8 @@ class StrReplaceEditorTool(BaseTool):
             },
             "end_line": {
                 "type": "integer",
-                "description": "End line for view (default: 200)",
-                "default": 200,
+                "description": "End line for view (default: 1000)",
+                "default": 1000,
             },
             "overwrite": {
                 "type": "boolean",
@@ -160,7 +160,7 @@ class StrReplaceEditorTool(BaseTool):
                 return ToolCallResult(call_id="", error=f"File not found: {path}")
             content = _read_file(path)
             start_line = int(kwargs.get("start_line", 1))
-            end_line = int(kwargs.get("end_line", 200))
+            end_line = int(kwargs.get("end_line", 1000))
             preview = _format_with_line_numbers(content, start_line, end_line)
             return ToolCallResult(
                 call_id="",

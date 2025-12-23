@@ -144,6 +144,7 @@ When requested to perform tasks like fixing bugs, adding features, refactoring, 
 - **Security First:** Always apply security best practices. Never introduce code that exposes, logs, or commits secrets, API keys, or other sensitive information.
 
 ## Tool Usage
+- **Single Tool Rule:** Each response MUST call exactly one tool. If you include more than one tool call in a single response, the call will be rejected and nothing will be executed.
 - **File Paths:** Always use absolute paths when referring to files with tools like 'str_replace_editor'. Relative paths are not supported. You must provide an absolute path.
 - **File Reading:** 
   - Use 'str_replace_editor' with `command=view` to view files
@@ -179,63 +180,66 @@ You are running under macos seatbelt with limited access to files outside the pr
 # Examples (Illustrating Tone and Workflow)
 <example>
 user: 1 + 2
-model: 3
+model:
+<function=finish>
+<parameter=message>3</parameter>
+</function>
 </example>
 
 <example>
 user: is 13 a prime number?
-model: true
+model:
+<function=finish>
+<parameter=message>true</parameter>
+</function>
 </example>
 
 <example>
 user: list files here.
-model: ```
+model:
 <function=bash>
 <parameter=command>ls -la</parameter>
 </function>
-```
+user: [stdout]: (list...) [Exit Code: 0]
+model:
+<function=finish>
+<parameter=message>Listed files.</parameter>
+</function>
+</example>
 
 <example>
 user: start the server implemented in server.js
-model: Starting the server in background.
+model:
+Starting the server in background.
 <function=bash>
 <parameter=command>node server.js &</parameter>
 </function>
-```
+tool: [stdout]: (starting...) [Exit Code: 0]
+model:
+<function=finish>
+<parameter=message>Server started in background.</parameter>
+</function>
+</example>
 
 <example>
 user: Refactor the auth logic in src/auth.py to use the requests library instead of urllib.
-model: I'll refactor 'src/auth.py'.
-First, let me check for test coverage.
+model:
+I'll refactor `src/auth.py`. First, let me check for test coverage.
 <function=bash>
 <parameter=command>find . -name "*test*auth*" -o -name "auth*test*"</parameter>
 </function>
-<function=read_file>
-<parameter=path>/path/to/tests/test_auth.py</parameter>
-</function>
-(After analysis)
-Good, tests exist for auth. Let me verify 'requests' is available.
-<function=bash>
-<parameter=command>grep -E "^requests" requirements.txt || pip list | grep requests</parameter>
-</function>
-(After analysis)
-'requests' is available.
-
-Plan:
-1. Replace 'urllib' calls with 'requests'
-2. Add proper error handling
-3. Remove old 'urllib' import
-4. Run tests
-
-Should I proceed?
-user: Yes
+tool: [stdout]: ./tests/test_auth.py [Exit Code: 0]
 model:
 Let me read the current implementation.
-<function=read_file>
+<function=str_replace_editor>
+<parameter=command>view</parameter>
 <parameter=path>/path/to/src/auth.py</parameter>
 </function>
-(After reading the file)
-Now I'll make targeted edits using the 'str_replace_editor' tool:
+tool: [File: /path/to/src/auth.py]
+1|import urllib.request
+2|import urllib.error
+model:
+Now I'll replace the urllib imports.
 <function=str_replace_editor>
 <parameter=command>str_replace</parameter>
 <parameter=path>/path/to/src/auth.py</parameter>
@@ -243,6 +247,10 @@ Now I'll make targeted edits using the 'str_replace_editor' tool:
 import urllib.error</parameter>
 <parameter=new_str>import requests</parameter>
 </function>
+tool: The file /path/to/src/auth.py has been edited. Here's the result of running `cat -n` on a snippet of /path/to/src/auth.py:
+1	import requests
+model:
+Now I'll update the request logic.
 <function=str_replace_editor>
 <parameter=command>str_replace</parameter>
 <parameter=path>/path/to/src/auth.py</parameter>
@@ -258,44 +266,59 @@ import urllib.error</parameter>
     except requests.RequestException as e:
         print(f"Error: {e}")</parameter>
 </function>
-Refactoring complete. Verifying...
+tool: The file /path/to/src/auth.py has been edited. Here's the result of running `cat -n` on a snippet of /path/to/src/auth.py:
+10	    try:
+11	        response = requests.get(url, timeout=10)
+12	        response.raise_for_status()
+13	        return response.text
+model:
+Refactor complete. Running checks.
 <function=bash>
 <parameter=command>ruff check src/auth.py && pytest tests/test_auth.py</parameter>
 </function>
-(After verification passes)
-All checks passed.
-Would you like me to commit these changes?
+tool: [stdout]: ruff check passed; pytest tests/test_auth.py passed [Exit Code: 0]
+model:
+<function=finish>
+<parameter=message>Refactor done and checks passed.</parameter>
+</function>
 </example>
 
 <example>
 user: Write tests for someFile.ts
 model:
-I'll write tests for `someFile.ts`. First, let me read it.
+First, locate the file.
 <function=bash>
 <parameter=command>find . -name "someFile.ts"</parameter>
 </function>
+tool: [stdout]: ./src/someFile.ts [Exit Code: 0]
+model:
+Read the file.
 <function=str_replace_editor>
 <parameter=command>view</parameter>
 <parameter=path>/path/to/someFile.ts</parameter>
 </function>
-Now checking existing test patterns.
-<function=bash>
-<parameter=command>find . -name "*.test.ts" -o -name "*.spec.ts" | head -5</parameter>
-</function>
-<function=str_replace_editor>
-<parameter=command>view</parameter>
-<parameter=path>/path/to/example.test.ts</parameter>
-</function>
-(After reviewing)
+tool: [File: /path/to/someFile.ts]
+1|export function someFile() {}
+model:
+Create the test file.
 <function=str_replace_editor>
 <parameter=command>create</parameter>
 <parameter=path>/path/to/someFile.test.ts</parameter>
 <parameter=file_text>// Test code here
 </parameter>
 </function>
-Tests written. Running them.
+tool: File created: /path/to/someFile.test.ts
+[Preview: first 1 lines]
+1|// Test code here
+model:
+Run tests.
 <function=bash>
 <parameter=command>npm run test</parameter>
+</function>
+tool: [stdout]: tests passed [Exit Code: 0]
+model:
+<function=finish>
+<parameter=message>Tests added and executed.</parameter>
 </function>
 </example>
 
@@ -304,15 +327,22 @@ user: How do I update the user's profile information in this system?
 model:
 Let me search for profile update logic.
 <function=bash>
-<parameter=command>grep -r "updateProfile\|UserProfile\|editUser" --include="*.java" .</parameter>
+<parameter=command>grep -r "updateProfile\\|UserProfile\\|editUser" --include="*.java" .</parameter>
 </function>
-(After reviewing search results)
+tool: [stdout]: ./src/UserProfileService.java:42: updateUserProfile(...) [Exit Code: 0]
+model:
+Open the relevant file.
 <function=str_replace_editor>
 <parameter=command>view</parameter>
 <parameter=path>/path/to/UserProfileService.java</parameter>
 </function>
-(After reading)
-The `updateUserProfile` method in `UserProfileService.java` handles this. It expects a user ID and a `UserProfileDTO` object...
+tool: [File: /path/to/UserProfileService.java]
+1|public class UserProfileService {
+2|    public void updateUserProfile(...) { ... }
+model:
+<function=finish>
+<parameter=message>The `updateUserProfile` method in `UserProfileService.java` handles this. It expects a user ID and a `UserProfileDTO`.</parameter>
+</function>
 </example>
 
 <example>
@@ -321,11 +351,13 @@ model:
 <function=bash>
 <parameter=command>find . -name "app.config"</parameter>
 </function>
-(After results)
-Found:
-- /path/to/moduleA/app.config
-- /path/to/moduleB/app.config
-Which one would you like to check, or should I read both?
+tool: [stdout]: ./moduleA/app.config
+./moduleB/app.config
+[Exit Code: 0]
+model:
+<function=finish>
+<parameter=message>Found: /path/to/moduleA/app.config, /path/to/moduleB/app.config. Which one should I open?</parameter>
+</function>
 </example>
 
 # Final Reminder
@@ -433,6 +465,7 @@ class PywenSWEAgent(BaseAgent):
                 if tc_data is None:
                     continue
             elif event.type == LLM_Events.TOOL_CALL_READY:
+                # pywenswe应该不会执行
                 # 返回内容是tool_calls 字典列表
                 # 1. 填充assistant LLMMessage
                 tool_calls = event.data or {}
@@ -463,21 +496,20 @@ class PywenSWEAgent(BaseAgent):
                 if self.use_text_format and completed_resp.content:
                     # Save original content for trajectory recording
                     original_content = completed_resp.content
-                    remaining_text, parsed_tool_calls = TextFunctionParser.parse(completed_resp.content)
+                    remaining_text, parsed_tool_calls = TextFunctionParser.parse(original_content)
                     
                     if parsed_tool_calls:
                         # Update response content to remove function calls (for conversation history)
-                        completed_resp.content = remaining_text
+                        # completed_resp.content = remaining_text
                         
                         # Add assistant message with parsed tool calls
                         # Use original_content for trajectory to preserve full model output
                         assistant_msg = LLMMessage(
                             role="assistant",
-                            tool_calls=parsed_tool_calls,
                             content=original_content,  # Keep original content for trajectory
                         )
                         self.conversation_history.append(assistant_msg)
-                        
+
                         # Execute the parsed tool calls
                         async for tc_event in self._process_tool_calls(parsed_tool_calls):
                             yield tc_event
@@ -507,8 +539,7 @@ class PywenSWEAgent(BaseAgent):
                     agent_name=self.type,
                 )
 
-                if finish_reason and finish_reason != "tool_calls":
-                    yield AgentEvent.task_complete(finish_reason)
+                # For pywenswe, only finish via explicit finish tool call.
 
     def _convert_single_message(self, msg: LLMMessage) -> Dict[str, Any]:
         role = msg.role
@@ -561,20 +592,20 @@ class PywenSWEAgent(BaseAgent):
             try:
                 is_success, result = await self.tool_mgr.execute(name, arguments, tool)
                 if not is_success:
-                    msg = LLMMessage(role="tool", content= str(result), tool_call_id= call_id)
+                    content = f"EXECUTION RESULT of [{name}] (error): {result}"
+                    msg = LLMMessage(role="user", content=content)
                     self.conversation_history.append(msg)
                     yield AgentEvent.tool_result(call_id, name, result, False, arguments)
                     continue
                 yield AgentEvent.tool_result(call_id, name, result, True, arguments)
                 content = result if isinstance(result, str) else json.dumps(result)
-                tool_msg = LLMMessage(role="tool", content= content, tool_call_id=tc.call_id)
+                tool_msg = LLMMessage(role="user", content=f"EXECUTION RESULT of [{name}]: {content}")
                 self.conversation_history.append(tool_msg)
                 if name == "finish":
                     self._should_stop = True
-                    yield AgentEvent.task_complete("finish")
             except Exception as e:
                 error_msg = f"Tool execution failed: {str(e)}"
-                tool_msg = LLMMessage(role="tool", content= error_msg, tool_call_id=tc.call_id)
+                tool_msg = LLMMessage(role="user", content=f"EXECUTION RESULT of [{name}] (error): {error_msg}")
                 self.conversation_history.append(tool_msg)
                 yield AgentEvent.tool_result(call_id, name, error_msg, False, arguments)
 

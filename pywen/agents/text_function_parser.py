@@ -237,14 +237,6 @@ When you need to use a tool, output it in the following XML-like format:
 6. Only include parameters defined in the tool schema
 7. finish tool must be the last tool called
 
-**Example:**
-
-Let me check the current directory and list files.
-
-<function=bash>
-<parameter=command>pwd && ls -la</parameter>
-</function>
-
 # Available Tools
 
 {tool_section}

@@ -29,7 +29,7 @@ class PermissionManager:
         self.tool_categories = {
             # 文件编辑类工具
             "file_edit": {
-                "write_file", "edit_file", "edit", "apply_patch"
+                "write_file", "edit_file", "edit", "apply_patch", "str_replace_editor"
             },
             
             # 文件读取类工具
