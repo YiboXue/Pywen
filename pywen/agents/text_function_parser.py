@@ -124,9 +124,9 @@ class TextFunctionParser:
             Converted value (str, int, float, bool, or original string)
         """
         # Handle boolean values
-        if value.lower() in ('true'):
+        if value.lower() in ('true',):
             return True
-        if value.lower() in ('false'):
+        if value.lower() in ('false',):
             return False
         
         # Try to convert to number
