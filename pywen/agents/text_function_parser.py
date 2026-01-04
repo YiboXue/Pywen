@@ -98,6 +98,15 @@ class TextFunctionParser:
         """
         parameters = {}
         
+        # Normalize malformed parameter tags like <parameter=command=view</parameter>
+        # into the canonical format <parameter=command>view</parameter>
+        function_content = re.sub(
+            r"<parameter=([a-zA-Z0-9_]+)=([^<]*)</parameter>",
+            r"<parameter=\1>\2</parameter>",
+            function_content,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        
         # Find all parameter blocks
         param_matches = cls.PARAMETER_PATTERN.finditer(function_content)
         
@@ -227,6 +236,15 @@ When you need to use a tool, output it in the following XML-like format:
 <parameter=PARAM1>value1</parameter>
 <parameter=PARAM2>value2</parameter>
 </function>
+
+
+**CRITICAL: Correct Parameter Format**
+The parameter tag format is: <parameter=PARAM_NAME>PARAM_VALUE</parameter>
+- CORRECT: <parameter=command>view</parameter>
+- WRONG: <parameter=command=view</parameter>
+- WRONG: <parameter="command">view</parameter>
+
+The value goes BETWEEN the opening and closing tags, NOT in the opening tag!
 
 **Important Rules:**
 1. You MUST only call one tool in one response!
